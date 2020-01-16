@@ -1,0 +1,38 @@
+En la coleccion Deberia guardar los periodos desde la columna c020
+
+tambien es importante llevar cuenta de que significa las columnas n
+
+
+ p_collection_name  => colec_pp
+,p_c001 => p_compra_pago_detalle
+,p_c002 => v_nombre_proveedor
+,p_c003 => v_codigo_mp
+,p_c004 => p_consignacion
+,p_c005 => v_nombre_origen
+,p_c006 => p_fecha_Arribo
+,p_c007 => p_c_at
+,p_c008 => p_cantidad_total
+,p_c009 => p_precio_unitario
+,p_c010 => v_plazo_pago_name
+,p_c011 => p_importe_derechos
+,p_c012 => p_fecha_pago_der_imp
+,p_c013 => p_importe_impuestos
+,p_c014 => p_importe_der_mas_imp
+,p_c015 => p_fecha_pago_factura
+,p_c016 => p_importe_factura
+,p_c017 => p_id_proveedor
+,p_c018 => p_inventory_item_id
+,p_c019 => p_term_id
+,p_c020 => p_tipo_orden
+
+No Parecen agregarse nuevos registros desde la el presupuesto de pagos sino que todos son desde el proceso de prsupuesto de pagos asi que por eso en la coleccion se guardan los datos, del reporte.
+
+
+when 1 then 'col-bd'
+when 2 then 'col-calculada'
+when 3 then 'col-editable'
+
+Falta el proceso de cambiar las fechas y periodos :(
+
+ya cree la tabla detalle detalle 
+DONE 

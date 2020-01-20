@@ -36,3 +36,8 @@ Falta el proceso de cambiar las fechas y periodos :(
 
 ya cree la tabla detalle detalle 
 DONE 
+
+20/01
+- Todavia esperando mail de carina con las definicionres restantes. cuidado con las querys de ordenes sin facturas y facturas pendientes de pago.
+- Tambien es necesario revisar la insercion de detalle_periodo con "TEMPORAL      := 'F' " para no cometer errores.
+- Tambien revisar a nivel tabla y coleccion los distintos tipos de registros, oc p, ocsf. ya cree la tabla de tipos e inserta los dos primeros.

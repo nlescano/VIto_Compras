@@ -39,7 +39,6 @@ IS
          ELSE
             NULL;
    END CASE;
-
    EXCEPTION
        WHEN no_data_found then
         null;
@@ -96,91 +95,93 @@ IS
          RAISE_APPLICATION_ERROR(-20000,'ERROR en  PKG_PRESUPUESTO_PAGOS.prc_agregar_periodos_colec '||SQLERRM);
    END; 
    
-   FUNCTION fc_precio_unitario (p_item_id        IN NUMBER,
+  FUNCTION fc_precio_unitario (p_item_id        IN NUMBER,
                                 p_vendor_id      IN NUMBER,
                                 p_consignacion   IN VARCHAR2 DEFAULT 'SI')
-      RETURN NUMBER
+  RETURN NUMBER
    -- Devuelve el precio unitario del material para ese vendedor en ARS
-   AS
+  AS
       v_precio   NUMBER;
-   BEGIN
-      IF UPPER (p_consignacion) = 'SI'
-      THEN
-         -- Con Consignacion
-         SELECT NVL (DECODE (poh.currency_code,
-                             'ARS', unit_price,
-                               unit_price * apps.ap_utilities_pkg.get_exchange_rate@lnkapxtcom (poh.currency_code,'ARS','Corporate',TRUNC (SYSDATE),'SQL')),0) unit_price_ars
-           INTO v_precio
-           FROM apps.po_headers_all@lnkapxtcom poh,
-                apps.po_lines_all@lnkapxtcom pol,
-                apps.po_vendors@lnkapxtcom v
-          WHERE     pol.po_header_id = poh.po_header_id
-                AND v.vendor_id = poh.vendor_id
-                AND pol.attribute7 IS NOT NULL
-                AND poh.attribute7 = 'OCA_CONSIGNACION'
-                AND pol.item_id = p_item_id ---item_id del presupuesto de compras
-                AND poh.vendor_id = p_vendor_id; ---Vendor_id del presupuesto de compras
-      ELSE
-         -- Sin Consignacion
-         SELECT NVL (DECODE (poh.currency_code,
-                             'ARS', unit_price,
-                               unit_price* apps.ap_utilities_pkg.get_exchange_rate@lnkapxtcom (poh.currency_code,'ARS','Corporate',TRUNC (SYSDATE),'SQL')),0)unit_price_ars
-           INTO v_precio
-           FROM APPS.PO_HEADERS_ALL@lnkapxtcom poh,
-                apps.PO_LINES_ALL@lnkapxtcom pol,
-                apps.po_vendors@lnkapxtcom v
-          WHERE     pol.po_header_id = poh.po_header_id
-                AND v.vendor_id = poh.vendor_id
-                AND pol.item_id = p_item_id ---item_id del presupuesto de compras
-                AND poh.vendor_id = p_vendor_id ---vendor_id del presupuesto de compras
-                AND poh.creation_date =(SELECT MAX (poh.creation_date)
-                                          FROM apps.po_headers_all@lnkapxtcom poh,
-                                               apps.po_lines_all@lnkapxtcom pol,
-                                               apps.po_vendors@lnkapxtcom v
-                                         WHERE     pol.po_header_id = poh.po_header_id
-                                               AND v.vendor_id = poh.vendor_id
-                                               AND pol.item_id = p_item_id ---item_id del presupuesto de compras
-                                               AND poh.vendor_id = p_vendor_id ---Vendor_id del presupuesto de compras
-                                               AND NVL (pol.cancel_flag, 'N') = 'N'
-                                               AND NVL (poh.approved_flag, 'n') = 'y');
+  BEGIN
+    IF UPPER (p_consignacion) = 'SI'
+    THEN
+        -- Con Consignacion
+        SELECT NVL (DECODE (poh.currency_code,
+                            'ARS', unit_price,
+                            unit_price * apps.ap_utilities_pkg.get_exchange_rate@lnkapxtcom (poh.currency_code,'ARS','Corporate',TRUNC (SYSDATE),'SQL')),0) unit_price_ars
+          INTO v_precio
+          FROM apps.po_headers_all@lnkapxtcom poh,
+              apps.po_lines_all@lnkapxtcom pol,
+              apps.po_vendors@lnkapxtcom v
+        WHERE     pol.po_header_id = poh.po_header_id
+              AND v.vendor_id = poh.vendor_id
+              AND pol.attribute7 IS NOT NULL
+              AND poh.attribute7 = 'OCA_CONSIGNACION'
+              AND pol.item_id = p_item_id ---item_id del presupuesto de compras
+              AND poh.vendor_id = p_vendor_id; ---Vendor_id del presupuesto de compras
+    ELSE
+      -- Sin Consignacion
+      SELECT NVL (DECODE (poh.currency_code,
+                          'ARS', unit_price,
+                          unit_price* apps.ap_utilities_pkg.get_exchange_rate@lnkapxtcom (poh.currency_code,'ARS','Corporate',TRUNC (SYSDATE),'SQL')),0)unit_price_ars
+      INTO v_precio
+      FROM APPS.PO_HEADERS_ALL@lnkapxtcom poh,
+          apps.PO_LINES_ALL@lnkapxtcom pol,
+          apps.po_vendors@lnkapxtcom v
+      WHERE   pol.po_header_id = poh.po_header_id
+          AND v.vendor_id = poh.vendor_id
+          AND pol.item_id = p_item_id ---item_id del presupuesto de compras
+          AND poh.vendor_id = p_vendor_id ---vendor_id del presupuesto de compras
+          AND poh.creation_date =(SELECT MAX (poh.creation_date)
+                                    FROM apps.po_headers_all@lnkapxtcom poh,
+                                          apps.po_lines_all@lnkapxtcom pol,
+                                          apps.po_vendors@lnkapxtcom v
+                                    WHERE     pol.po_header_id = poh.po_header_id
+                                    AND v.vendor_id = poh.vendor_id
+                                    AND pol.item_id = p_item_id ---item_id del presupuesto de compras
+                                    AND poh.vendor_id = p_vendor_id ---Vendor_id del presupuesto de compras
+                                    AND NVL (pol.cancel_flag, 'N') = 'N'
+                                    AND NVL (poh.approved_flag, 'n') = 'y');
       END IF;
-
       RETURN v_precio;
-   EXCEPTION
-      WHEN NO_DATA_FOUND
-      THEN
+  EXCEPTION
+      WHEN NO_DATA_FOUND THEN
          RETURN 0;
       WHEN OTHERS THEN
          RAISE_APPLICATION_ERROR (-20000,'Error en fn_precio_unitario ' || SQLERRM);
-   END;
+  END;
 
-   PROCEDURE prc_colec_presu_pagos (p_id_presu_pago IN NUMBER)
-   AS
-   -- Coleccion de presupuesto de pagos.
-   BEGIN
-      apex_collection.create_or_truncate_collection (colec_pp);
-      --  apex_debug.error('coleccion creada');
-      FOR i IN (SELECT pd.id_pres_pago_detalle,
-                       pd.id_presupuesto_pagos,
-                       pd.consignacion,
-                       pd.id_proveedor,
-                       pd.inventario_item_id,
-                       pd.codigo_origen,
-                       pd.fecha_arribo,
-                       pd.cantidad_total,
-                       pd.precio_unitario,
-                       pd.plazo_pago term_id,
-                       pd.compras_asignadas,
-                       pd.importe_derechos,
-                       pd.fecha_der_imp,
-                       pd.importe_impuestos,
-                       pd.importe_der_mas_imp,
-                       pd.fecha_pago_factura,
-                       pd.importe_factura,
-                       pd.c_at
+  PROCEDURE prc_colec_presu_pagos (p_id_presu_pago IN NUMBER)
+  AS
+  -- Coleccion de presupuesto de pagos.
+  BEGIN
+    apex_collection.create_or_truncate_collection (colec_pp);
+    --  apex_debug.error('coleccion creada');
+    FOR i IN (SELECT  pd.id_pres_pago_detalle,
+                      pd.id_presupuesto_pagos,
+                      pd.consignacion,
+                      pd.id_proveedor,
+                      pd.inventario_item_id,
+                      pd.codigo_origen,
+                      pd.fecha_arribo,
+                      pd.cantidad_total,
+                      pd.precio_unitario,
+                      pd.plazo_pago term_id,
+                      pd.compras_asignadas,
+                      pd.importe_derechos,
+                      pd.fecha_der_imp,
+                      pd.importe_impuestos,
+                      pd.importe_der_mas_imp,
+                      pd.fecha_pago_factura,
+                      pd.importe_factura,
+                      pd.c_at,
+                      pd.tipo_pres_pago_detalle
                FROM tc_presupuesto_pagos pp, tc_presupuesto_pagos_detalles pd
-              WHERE     pp.id_presupuesto_pagos = pd.id_presupuesto_pagos
-                    AND p_id_presu_pago = pp.id_presupuesto_pagos)
+              WHERE pp.id_presupuesto_pagos = pd.id_presupuesto_pagos
+                AND p_id_presu_pago = pp.id_presupuesto_pagos
+-- HardCodeo para evitar los errores de las querys de los otros reportes
+                AND pd.tipo_pres_pago_detalle != 20
+                )
       LOOP
          --    apex_debug.error('LOOP detalle '||i.id_pres_pago_detalle);
          PKG_PRESUPUESTO_PAGOS.prc_agregar_colec_pago (
@@ -200,33 +201,33 @@ IS
             p_importe_der_mas_imp   => i.importe_der_mas_imp,
             p_fecha_pago_factura    => i.fecha_pago_factura,
             p_importe_factura       => i.importe_factura,
-            p_tipo_orden            => 'PLANIFICADA');
+            p_tipo_orden            => i.tipo_pres_pago_detalle);
       END LOOP;
-   EXCEPTION
+  EXCEPTION
       WHEN others THEN 
          RAISE_APPLICATION_ERROR(-20000, 'ERROR en PKG_PRESUPUESTO_PAGOS.prc_colec_presu_pagos '|| sqlerrm);
-   END;
+  END;
 
-PROCEDURE PRC_INSERT_PAGOS_PERIODOS_FAC (P_TERM_ID                IN NUMBER,
+  PROCEDURE PRC_INSERT_PAGOS_PERIODOS_FAC (P_TERM_ID                IN NUMBER,
                                          P_IMPORTE                IN NUMBER,
                                          P_ID_PRES_PAGO_DETALLE   IN NUMBER,
                                          P_MODIFICAR              IN VARCHAR2 DEFAULT 'S')
-IS
-   v_fecha_inicial                DATE;
-   v_pres_pagos_detalle_periodo   APX_TCOM.TC_PRES_PAGOS_DETALLE_PERIODO%ROWTYPE;
-   v_term_id_tabla                APX_TCOM.TC_PRES_PAGOS_DETALLE_PERIODO.PLAZO_PAGO%TYPE;
-   v_temp                         APX_TCOM.TC_PRES_PAGOS_DETALLE_PERIODO.TEMPORAL%TYPE;
-BEGIN
+  IS
+  v_fecha_inicial                DATE;
+  v_pres_pagos_detalle_periodo   APX_TCOM.TC_PRES_PAGOS_DETALLE_PERIODO%ROWTYPE;
+  v_term_id_tabla                APX_TCOM.TC_PRES_PAGOS_DETALLE_PERIODO.PLAZO_PAGO%TYPE;
+  v_temp                         APX_TCOM.TC_PRES_PAGOS_DETALLE_PERIODO.TEMPORAL%TYPE;
+  BEGIN
    -- Obtener fecha salida de materia
-   SELECT fecha_salida
-     INTO v_fecha_inicial
-     FROM tc_presupuesto_pagos_detalles
-    WHERE id_pres_pago_detalle = P_ID_PRES_PAGO_DETALLE;
+  SELECT fecha_salida
+    INTO v_fecha_inicial
+    FROM tc_presupuesto_pagos_detalles
+   WHERE id_pres_pago_detalle = P_ID_PRES_PAGO_DETALLE;
 
    select nvl((SELECT distinct plazo_pago 
-          FROM apx_tcom.tc_pres_pagos_detalle_periodo
-          where ID_PRES_PAGO_DETALLE    = P_ID_PRES_PAGO_DETALLE
-          and temporal NOT IN ('M','F')),-1)
+                FROM apx_tcom.tc_pres_pagos_detalle_periodo
+                where ID_PRES_PAGO_DETALLE    = P_ID_PRES_PAGO_DETALLE
+                and temporal NOT IN ('M','F')),-1)
      into v_term_id_tabla from dual;
    IF v_term_id_tabla != -1 THEN   
          PKG_PRESUPUESTO_PAGOS.prc_cambiar_estado_det_peri(p_id_pres_pago_detalle => p_id_pres_pago_detalle,
@@ -352,18 +353,18 @@ END;
       p_fecha_pago_factura    IN VARCHAR2 DEFAULT NULL,
       p_importe_factura       IN VARCHAR2 DEFAULT NULL,
       p_tipo_orden            IN VARCHAR2 DEFAULT NULL)
-   IS
+  IS
       v_nombre_proveedor   VARCHAR2 (3000);
       v_codigo_mp          VARCHAR2 (3000);
       v_nombre_origen      VARCHAR2 (3000);
       v_plazo_pago_name    VARCHAR2 (3000);
       v_seq NUMBER;
-   BEGIN
-      IF NOT APEX_COLLECTION.collection_exists (colec_pp)
-      THEN
+  BEGIN
+      if not apex_collection.collection_exists (colec_pp)
+      then
          apex_collection.create_collection (colec_pp);
-      END IF;
-apex_debug.error('1 acp %s p_id_proveedor: %s', p_compra_pago_detalle,p_id_proveedor);
+      end if;
+apex_debug.error('1 acp %s p_id_proveedor: %s tipo_orden %s', p_compra_pago_detalle,p_id_proveedor,p_tipo_orden);
 
       SELECT DISTINCT vendor_name
         INTO v_nombre_proveedor
@@ -377,15 +378,18 @@ apex_debug.error('2 acp %s p_inventory_item_id: %s', p_compra_pago_detalle, p_in
        WHERE inventory_item_id = p_inventory_item_id;
 apex_debug.error('3 acp %s p_codigo_origen: %s', p_compra_pago_detalle,p_codigo_origen);
 
-      SELECT nombre_origen
-        INTO v_nombre_origen
-        FROM v_origen
-       WHERE codigo_origen = p_codigo_origen;
+    SELECT NVL ((SELECT nombre_origen     
+                   FROM v_origen
+                  WHERE codigo_origen = p_codigo_origen),
+              NULL)
+      INTO v_nombre_origen
+      FROM DUAL;
+
 apex_debug.error('4 acp %s p_term_id: %s', p_compra_pago_detalle,p_term_id);
 
-      SELECT NVL ( (SELECT name
-                      FROM v_plazo_pago
-                     WHERE term_id = p_term_id),
+      SELECT NVL ( (select name
+                      from v_plazo_pago
+                     where term_id = p_term_id),
                   NULL)
         INTO v_plazo_pago_name
         FROM DUAL;
@@ -687,7 +691,7 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
       -- v_pres_detalle.pago_particionado      :=  ;
       v_pres_detalle.c_at                   :=  i.c_at ;
       v_pres_detalle.fecha_salida           := i.fecha_salida;
-      v_pres_detalle.tipo_pres_pago_detalle := 1;
+      v_pres_detalle.tipo_pres_pago_detalle := 10;
 
       pkg_ctrl_presupuesto_pagos.insertar_pres_pagos_detalles(P_PRESUPUESTO_PAGOS_DETALLES => v_pres_detalle); 
       END LOOP;
@@ -775,7 +779,7 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
       -- v_pres_detalle.fecha_pago_factura     :=  ;
       -- v_pres_detalle.importe_factura        :=  ;
       -- v_pres_detalle.pago_particionado      :=  ;
-      v_pres_detalle.tipo_pres_pago_detalle := 2;
+      v_pres_detalle.tipo_pres_pago_detalle := 20;
 
 
   pkg_ctrl_presupuesto_pagos.insertar_pres_pagos_detalles(P_PRESUPUESTO_PAGOS_DETALLES => v_pres_detalle);
@@ -1032,7 +1036,8 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
       v_period                 NUMBER;
       ----------------------------------------
       v_cant_fila                   varchar2(100);
-      n_col                    VARCHAR2 (32767);
+      a_col                    VARCHAR2 (32767);
+      b_col                    VARCHAR2 (32767);
       n_cant_col               NUMBER;
    BEGIN
       IF p_id_presupuesto_pagos IS NULL
@@ -1115,25 +1120,32 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
       select count(1) - 1 
       into v_cant_fila
       from TABLE(l_outer_cols);
-      n_col := ' ''a'' ';
+      a_col:= ' ''a''';
+      b_col:= ' ''b''';
+
       for i in 1..v_cant_fila
       loop
          if i = 7 then
-            n_col := n_col ||',  ''<span class="fila" >OC Planificadas</span>'' ';
+           a_col:=a_col||',  ''<span class="fila" >OC Planificadas</span>'' ';
+           b_col:=b_col||',  ''<span class="fila" >BBBBBBBBBBBBBB</span>'' ';
+
          else
-            n_col := n_col ||', ''a'' ';
+           a_col:=a_col||',''a'' ';
+           b_col:=b_col||',''b'' ';
+
          end if;
       end loop;
   /*    l_template := 'select {cols} from ({query})
                        UNION select {n_col} from dual ';*/
        l_template := 'select * from (select {cols}, n005 from ({query})
-                                    UNION select {n_col}, 1 as n005 from dual )
+                               UNION select {a_col}, 1 as n005 from dual 
+                               UNION select {b_col}, 1000 as n005 from dual )
                        order by n005 ';                
       l_outer_query :=
          fnc_replace_all (
             l_template,
-            apex_t_varchar2 ('cols', 'query', 'n_col'),
-            apex_t_varchar2 (l_columnas_formateadas, l_inner_query, n_col));
+            apex_t_varchar2 ('cols', 'query', 'a_col','b_col'),
+            apex_t_varchar2 (l_columnas_formateadas, l_inner_query, a_col,b_col));
       --      apex_debug.info('query generado por fnc_query_reporte_presup_pagos');
       --      apex_debug.info(l_outer_query);
       --      apex_debug.error(' antes inner query');
@@ -1145,6 +1157,7 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
     WHEN OTHERS THEN
       RAISE_APPLICATION_ERROR (-20000,'ERROR en PKG_PRESUPUESTO_PAGOS.fnc_query_reporte_presup_pagos '|| SQLERRM);
   END;
+  
   PROCEDURE prc_borrar_demas_colecciones
   IS
   BEGIN
@@ -1158,3 +1171,4 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
     END LOOP;
   END;
 END PKG_PRESUPUESTO_PAGOS;
+/

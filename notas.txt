@@ -27,17 +27,22 @@ tambien es importante llevar cuenta de que significa las columnas n
 
 No Parecen agregarse nuevos registros desde la el presupuesto de pagos sino que todos son desde el proceso de prsupuesto de pagos asi que por eso en la coleccion se guardan los datos, del reporte.
 
-
 when 1 then 'col-bd'
 when 2 then 'col-calculada'
 when 3 then 'col-editable'
 
-Falta el proceso de cambiar las fechas y periodos :(
+Falta el proceso de cambiar las fechas y periodos :(  Done
 
 ya cree la tabla detalle detalle 
 DONE 
 
 20/01
-- Todavia esperando mail de carina con las definicionres restantes. cuidado con las querys de ordenes sin facturas y facturas pendientes de pago.
-- Tambien es necesario revisar la insercion de detalle_periodo con "TEMPORAL      := 'F' " para no cometer errores.
-- Tambien revisar a nivel tabla y coleccion los distintos tipos de registros, oc p, ocsf. ya cree la tabla de tipos e inserta los dos primeros.
+- Todavia esperando mail de carina con las definicionres restantes. cuidado con las querys de ordenes sin facturas y facturas pendientes de pago. [ ]
+- Tambien es necesario revisar la insercion de detalle_periodo con "TEMPORAL      := 'F' " para no cometer errores. [ ]
+- Tambien revisar a nivel tabla y coleccion los distintos tipos de registros, oc p, ocsf. ya cree la tabla de tipos e inserta los dos primeros. [ ]
+
+21/01
+- En la query de oc sin facturar hay registros que no tienen origen. consultar a carina. 
+tambien hay registros con proveedores que no estan en el filtro de seleccion anterior. en particular que no cumplen pvs.org_id = '86' ¿como resolver esto? 
+--> mandarle mail a carina, esperando mail de carina. [ ]
+- Calculo de pagos de materias en consignacion segun el consumo [ ]

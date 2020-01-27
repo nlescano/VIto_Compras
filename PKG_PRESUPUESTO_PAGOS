@@ -1012,140 +1012,153 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
          RAISE_APPLICATION_ERROR (-20000,'Error en PKG_PRESUPUESTO_PAGOS.fnc_render_pp ' || SQLERRM);
    END;
 
-   FUNCTION fnc_query_reporte_presup_pagos (p_id_presupuesto_pagos IN NUMBER)
-      RETURN VARCHAR2
-   --------------------------
-   -- Funcion que devuelve la query del presupuesto de pagos
-   --------------------------
-   IS
-      p_periodo_ini            NUMBER;
-      p_periodo_hasta          NUMBER;
-      p_cant_periodos          NUMBER;
-      ---------------------------------------
-      l_inner_query            VARCHAR2 (32767);
-      l_outer_query            VARCHAR2 (32767);
-      l_inner_cols             apex_t_varchar2;
-      l_outer_cols             apex_t_varchar2;
-      l_col                    VARCHAR2 (32767);
-      l_columnas_formateadas   VARCHAR2 (32767);
-      l_periodo_date           DATE;
-      l_periodo                NUMBER;
-      l_periodo_formateado     VARCHAR2 (500);
-      ---------------------------------------
-      l_template               VARCHAR2 (32767);
-      v_period                 NUMBER;
-      ----------------------------------------
-      v_cant_fila                   varchar2(100);
-      a_col                    VARCHAR2 (32767);
-      b_col                    VARCHAR2 (32767);
-      n_cant_col               NUMBER;
-   BEGIN
-      IF p_id_presupuesto_pagos IS NULL
-      THEN
-         RETURN 'select 1 from dual';
-      END IF;
+  FUNCTION fnc_query_reporte_presup_pagos (p_id_presupuesto_pagos IN NUMBER)
+    RETURN VARCHAR2
+  --------------------------
+  -- Funcion que devuelve la query del presupuesto de pagos
+  --------------------------
+  IS
+    p_periodo_ini            NUMBER;
+    p_periodo_hasta          NUMBER;
+    p_cant_periodos          NUMBER;
+    ---------------------------------------
+    l_inner_query            VARCHAR2 (32767);
+    l_outer_query            VARCHAR2 (32767);
+    l_inner_cols             apex_t_varchar2;
+    l_outer_cols             apex_t_varchar2;
+    l_col                    VARCHAR2 (32767);
+    l_columnas_formateadas   VARCHAR2 (32767);
+    l_periodo_date           DATE;
+    l_periodo                NUMBER;
+    l_periodo_formateado     VARCHAR2 (500);
+    ---------------------------------------
+    l_template               VARCHAR2 (32767);
+    v_period                 NUMBER;
+    ----------------------------------------
+    v_cant_fila                   varchar2(100);
+    a_col                    VARCHAR2 (32767);
+    b_col                    VARCHAR2 (32767);
+    n_cant_col               NUMBER;
+  BEGIN
+    IF p_id_presupuesto_pagos IS NULL
+    THEN
+        RETURN 'select 1 from dual';
+    END IF;
 
-      prc_obtener_periodos_pres_pago (
-         p_id_presupuesto   => p_id_presupuesto_pagos,
-         p_periodo_desde    => p_periodo_ini,
-         p_periodo_hasta    => p_periodo_hasta,
-         p_cant_periodos    => p_cant_periodos);
+    prc_obtener_periodos_pres_pago (
+        p_id_presupuesto   => p_id_presupuesto_pagos,
+        p_periodo_desde    => p_periodo_ini,
+        p_periodo_hasta    => p_periodo_hasta,
+        p_cant_periodos    => p_cant_periodos);
 
-      v_period := p_periodo_ini;
+    v_period := p_periodo_ini;
 
-      FOR i IN 0 .. 14
-      LOOP
-         l_col := fnc_make_collection_column (i);
-         PKG_PRESUPUESTO_PAGOS.prc_agregar_col_pp (
-            p_cols            => l_inner_cols,
-            p_col             => l_col,
-            p_name            => l_col,
-            p_preserve_case   => FALSE,
-            p_seq             => 'seq_id');
-      END LOOP;
+    FOR i IN 0 .. 14
+    LOOP
+        l_col := fnc_make_collection_column (i);
+        PKG_PRESUPUESTO_PAGOS.prc_agregar_col_pp (
+          p_cols            => l_inner_cols,
+          p_col             => l_col,
+          p_name            => l_col,
+          p_preserve_case   => FALSE,
+          p_seq             => 'seq_id');
+    END LOOP;
 
-      FOR i
-         IN (SELECT COLUMN_VALUE VAL, ROWNUM
-               FROM TABLE (apex_t_varchar2 ('Proveedor','MP','Consignacion','Origen','Fecha Arribo','AT','Cantidad','Precio Unitario','Plazo de pago','Importe Derechos','Fecha de pago Derechos+Imp','Importe Impuestos','Importe Derechos e Impuestos','Fecha de Pago Factura','Importe Factura')))
-      LOOP
-         PKG_PRESUPUESTO_PAGOS.prc_agregar_col_pp (
-            l_outer_cols,
-            fnc_make_collection_column (i.ROWNUM - 2 + 1),
-            i.val,
-            TRUE,
-            FALSE);
-      END LOOP;
+    FOR i
+        IN (SELECT COLUMN_VALUE VAL, ROWNUM
+              FROM TABLE (apex_t_varchar2 ('Proveedor','MP','Consignacion','Origen','Fecha Arribo','AT','Cantidad','Precio Unitario','Plazo de pago','Importe Derechos','Fecha de pago Derechos+Imp','Importe Impuestos','Importe Derechos e Impuestos','Fecha de Pago Factura','Importe Factura')))
+    LOOP
+        PKG_PRESUPUESTO_PAGOS.prc_agregar_col_pp (
+          l_outer_cols,
+          fnc_make_collection_column (i.ROWNUM - 2 + 1),
+          i.val,
+          TRUE,
+          FALSE);
+    END LOOP;
 
-      FOR i IN (    SELECT ROWNUM val
-                      FROM DUAL
-                     WHERE ROWNUM <= p_cant_periodos
-                CONNECT BY LEVEL < 90)
-      LOOP
-         l_col := fnc_make_collection_column (i.val + l_offset); --(l_offset - 2)
+    FOR i IN (    SELECT ROWNUM val
+                    FROM DUAL
+                    WHERE ROWNUM <= p_cant_periodos
+              CONNECT BY LEVEL < 90)
+    LOOP
+      l_col := fnc_make_collection_column (i.val + l_offset); --(l_offset - 2)
 
-         l_periodo_formateado := fnc_period_to_mon_yy (v_period);
-         PKG_PRESUPUESTO_PAGOS.prc_agregar_col_pp (
-            p_cols            => l_inner_cols,
-            p_col             => l_col,
-            p_name            => l_col,
-            p_preserve_case   => FALSE,
-            p_render_item     => TRUE,
-            p_col_modo        => 2,
-            p_seq             => 'seq_id');
-         PKG_PRESUPUESTO_PAGOS.prc_agregar_col_pp (
-            p_cols            => l_outer_cols,
-            p_col             => l_col,
-            p_name            => l_periodo_formateado,
-            p_preserve_case   => TRUE,
-            p_render_item     => FALSE,
-            p_col_modo        => 2);
-         v_period := FNC_OBTENER_SIG_PERIODO_COD (v_period);
-      END LOOP;
+      l_periodo_formateado := fnc_period_to_mon_yy (v_period);
+      PKG_PRESUPUESTO_PAGOS.prc_agregar_col_pp (
+        p_cols            => l_inner_cols,
+        p_col             => l_col,
+        p_name            => l_col,
+        p_preserve_case   => FALSE,
+        p_render_item     => TRUE,
+        p_col_modo        => 2,
+        p_seq             => 'seq_id');
+      PKG_PRESUPUESTO_PAGOS.prc_agregar_col_pp (
+        p_cols            => l_outer_cols,
+        p_col             => l_col,
+        p_name            => l_periodo_formateado,
+        p_preserve_case   => TRUE,
+        p_render_item     => FALSE,
+        p_col_modo        => 2);
+      v_period := FNC_OBTENER_SIG_PERIODO_COD (v_period);
+    END LOOP;
+    
+        prc_agregar_col(
+        p_cols          => l_inner_cols, 
+        p_col           => 'n005', 
+        p_name          => 'orden', 
+        p_preserve_case => false, 
+        p_render_item   => false
+    );
 
-      SELECT LISTAGG (COLUMN_VALUE, ',') WITHIN GROUP (ORDER BY COLUMN_VALUE)
-        INTO l_columnas_formateadas
-        FROM TABLE (l_inner_cols);
 
-      l_template :='select {cols}, n005 from apex_collections where upper (collection_name) = upper(''{coleccion_pagos}'')';
 
-      l_inner_query :=
-         fnc_replace_all (l_template,
-                          apex_t_varchar2 ('cols', 'coleccion_pagos'),
-                          apex_t_varchar2 (l_columnas_formateadas, colec_pp));
+    SELECT LISTAGG (COLUMN_VALUE, ',') WITHIN GROUP (ORDER BY COLUMN_VALUE)
+      INTO l_columnas_formateadas
+      FROM TABLE (l_inner_cols);
 
-      SELECT LISTAGG (COLUMN_VALUE, ',') WITHIN GROUP (ORDER BY COLUMN_VALUE)
-        INTO l_columnas_formateadas
-        FROM TABLE (l_outer_cols);
-      
-      select count(1) - 1 
-      into v_cant_fila
-      from TABLE(l_outer_cols);
-      a_col:= ' ''a''';
-      b_col:= ' ''b''';
+    select count(1) - 1
+    into v_cant_fila
+    from TABLE(l_inner_cols);
+    a_col:= ' ''a''';
+    b_col:= ' ''b''';
 
-      for i in 1..v_cant_fila
-      loop
-         if i = 7 then
-           a_col:=a_col||',  ''<span class="fila" >OC Planificadas</span>'' ';
-           b_col:=b_col||',  ''<span class="fila" >BBBBBBBBBBBBBB</span>'' ';
+    for i in 1..v_cant_fila
+    loop
+        case i
+          when 7 then
+            a_col:=a_col||',  ''<span class="fila" >OC Planificadas</span>'' ';
+            b_col:=b_col||',  ''<span class="fila" >BBBBBBBBBBBBBB</span>'' ';
+          when v_cant_fila then
+          a_col:=a_col||','|| 1   ||' as orden ';
+          b_col:=b_col||','|| 177 ||' as orden ';
+        else
+          a_col:=a_col||',''a'' ';
+          b_col:=b_col||',''b'' ';
+        end case;
+    end loop;
 
-         else
-           a_col:=a_col||',''a'' ';
-           b_col:=b_col||',''b'' ';
+    l_template :='select {cols} from apex_collections where upper (collection_name) = upper(''{coleccion_pagos}'')
+        UNION select {a_col} from dual 
+        UNION select {b_col} from dual ';
 
-         end if;
-      end loop;
+    l_inner_query := fnc_replace_all (l_template,
+                        apex_t_varchar2 ('cols', 'coleccion_pagos', 'a_col','b_col'),
+                        apex_t_varchar2 (l_columnas_formateadas, colec_pp, a_col,b_col));
+
+    SELECT LISTAGG (COLUMN_VALUE, ',') WITHIN GROUP (ORDER BY COLUMN_VALUE)
+      INTO l_columnas_formateadas
+      FROM TABLE (l_outer_cols);
+    
+
   /*    l_template := 'select {cols} from ({query})
                        UNION select {n_col} from dual ';*/
-       l_template := 'select * from (select {cols}, n005 from ({query})
-                               UNION select {a_col}, 1 as n005 from dual 
-                               UNION select {b_col}, 1000 as n005 from dual )
-                       order by n005 ';                
+  l_template := 'select * from (select {cols}, orden from ({query} )  order by orden        
+                   )  ';                
       l_outer_query :=
          fnc_replace_all (
             l_template,
-            apex_t_varchar2 ('cols', 'query', 'a_col','b_col'),
-            apex_t_varchar2 (l_columnas_formateadas, l_inner_query, a_col,b_col));
+            apex_t_varchar2 ('cols', 'query'),
+            apex_t_varchar2 (l_columnas_formateadas, l_inner_query));
       --      apex_debug.info('query generado por fnc_query_reporte_presup_pagos');
       --      apex_debug.info(l_outer_query);
       --      apex_debug.error(' antes inner query');
@@ -1157,7 +1170,7 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
     WHEN OTHERS THEN
       RAISE_APPLICATION_ERROR (-20000,'ERROR en PKG_PRESUPUESTO_PAGOS.fnc_query_reporte_presup_pagos '|| SQLERRM);
   END;
-  
+
   PROCEDURE prc_borrar_demas_colecciones
   IS
   BEGIN

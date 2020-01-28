@@ -99,7 +99,7 @@ IS
                                 p_vendor_id      IN NUMBER,
                                 p_consignacion   IN VARCHAR2 DEFAULT 'SI')
   RETURN NUMBER
-   -- Devuelve el precio unitario del material para ese vendedor en ARS
+  -- Devuelve el precio unitario del material para ese vendedor en ARS
   AS
       v_precio   NUMBER;
   BEGIN
@@ -1038,6 +1038,8 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
     v_cant_fila                   varchar2(100);
     a_col                    VARCHAR2 (32767);
     b_col                    VARCHAR2 (32767);
+    c_col                    VARCHAR2 (32767);
+
     n_cant_col               NUMBER;
   BEGIN
     IF p_id_presupuesto_pagos IS NULL
@@ -1119,31 +1121,39 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
     select count(1) - 1
     into v_cant_fila
     from TABLE(l_inner_cols);
-    a_col:= ' ''a''';
-    b_col:= ' ''b''';
+    a_col:= ' ''<span class="fila" id="ocp" >OC Planificadas</span>'' ';
+    b_col:= ' ''<span class="fila" id="ocsf">OC Recibidas sin Facturar</span>'' ';
+    c_col:= ' ''<span class="fila" id="fpp">Facturas Pendientes de Pago</span>'' ';
 
     for i in 1..v_cant_fila
     loop
         case i
           when 7 then
-            a_col:=a_col||',  ''<span class="fila" >OC Planificadas</span>'' ';
-            b_col:=b_col||',  ''<span class="fila" >BBBBBBBBBBBBBB</span>'' ';
+            a_col:=a_col||',  ''<span class="fiwefla" id="ocpsdregrsea" >OC Planificadas</span>'' ';
+            b_col:=b_col||',  ''<span class="fsdfila" id="ocsfasdfa">OC Recibidas sin Facturar</span>'' ';
+            c_col:=c_col||',  ''<span class="filsdfa" id="fppasdfasdf">Facturas Pendientes de Pago</span>'' ';
           when v_cant_fila then
-          a_col:=a_col||','|| 1   ||' as orden ';
-          b_col:=b_col||','|| 177 ||' as orden ';
+          a_col:=a_col||','|| 1  ||' as orden ';
+          b_col:=b_col||','|| 19 ||' as orden ';
+          c_col:=c_col||','|| 29 ||' as orden ';
+
         else
           a_col:=a_col||',''a'' ';
-          b_col:=b_col||',''b'' ';
+          b_col:=b_col||',''b'' ';          
+          c_col:=c_col||',''c'' ';
+
         end case;
     end loop;
 
     l_template :='select {cols} from apex_collections where upper (collection_name) = upper(''{coleccion_pagos}'')
         UNION select {a_col} from dual 
-        UNION select {b_col} from dual ';
+        UNION select {b_col} from dual
+        UNION select {c_col} from dual ';
+
 
     l_inner_query := fnc_replace_all (l_template,
-                        apex_t_varchar2 ('cols', 'coleccion_pagos', 'a_col','b_col'),
-                        apex_t_varchar2 (l_columnas_formateadas, colec_pp, a_col,b_col));
+                        apex_t_varchar2 ('cols', 'coleccion_pagos', 'a_col','b_col','c_col'),
+                        apex_t_varchar2 (l_columnas_formateadas, colec_pp, a_col,b_col,c_col));
 
     SELECT LISTAGG (COLUMN_VALUE, ',') WITHIN GROUP (ORDER BY COLUMN_VALUE)
       INTO l_columnas_formateadas
@@ -1152,7 +1162,7 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
 
   /*    l_template := 'select {cols} from ({query})
                        UNION select {n_col} from dual ';*/
-  l_template := 'select * from (select {cols}, orden from ({query} )  order by orden        
+  l_template := 'select * from (select {cols}, orden from ({query} )  order by orden    
                    )  ';                
       l_outer_query :=
          fnc_replace_all (

@@ -439,6 +439,8 @@ apex_debug.error('5 acp %s ', p_compra_pago_detalle);
       v_importe_factura     NUMBER;
       v_seq                 NUMBER;
       v_factura_detalle_periodo APX_TCOM.TC_PRES_PAGOS_DETALLE_PERIODO%ROWTYPE;
+      v_cant_pagos          NUMBER;
+      v_fecha_pago_factura  varchar2(400);
   BEGIN
   /*
 Este Proceso puede llegar a ser muy complejo por el momento ya que dependiento de el plaso de pago (p_term_id)
@@ -455,7 +457,6 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
                    where collection_name = colec_pp
                    and seq_id = p_seq)
   LOOP
- -- apex_debug.error('1 Debug principio de loop ');
   IF c.c007 = 'SI' THEN
         v_importe_impuestos  := 0 ;
         v_importe_derechos   := 0 ;
@@ -474,12 +475,30 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
   IF (fnc_cod_origen(c.c005) = 'AR' ) THEN
         v_importe_derechos   := 0 ;
         v_importe_factura := c.c008 * p_precio_unitario + v_importe_impuestos;
+        v_importe_der_mas_imp := 0;
   ELSE
         v_importe_der_mas_imp := NVL(v_importe_derechos,0) + NVL(v_importe_impuestos,0);         
         v_importe_factura :=  c.c008 * p_precio_unitario;
   END IF;
    apex_debug.error('3 afuera segundo IF');
   
+
+  IF p_term_id IS NOT NULL THEN
+    SELECT COUNT( sequence_num ) INTO v_cant_pagos 
+    FROM apps.ap_terms_lines@lnkapxtcom
+    WHERE term_id = p_term_id;
+
+    IF v_cant_pagos = 1 THEN
+      select to_char((fecha_salida + due_days),'DD/MM/YYYY') into v_fecha_pago_factura
+      FROM TC_PRESUPUESTO_PAGOS_DETALLES, apps.ap_terms_lines@lnkapxtcom
+      where id_pres_pago_detalle = c.c001
+      and term_id = p_term_id ;
+    ELSE
+      v_fecha_pago_factura := 'Pago Multiple';
+    END IF;
+  END IF;
+  apex_debug.error('4 v_fecha_pago_factura'||v_fecha_pago_factura);
+
   BEGIN
   v_factura_detalle_periodo.ID_PRES_PAGOS_DETALLE_PERIODO  :=  SEQ_PRES_PAGOS_DETALLE_PERIODO.NEXTVAL;
   v_factura_detalle_periodo.ID_PRES_PAGO_DETALLE   := c.c001;
@@ -531,6 +550,11 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
       p_seq               => p_seq,
       p_attr_number       => '14',
       p_attr_value        => v_importe_der_mas_imp);
+   APEX_COLLECTION.UPDATE_MEMBER_ATTRIBUTE (
+      p_collection_name   => colec_pp,
+      p_seq               => p_seq,
+      p_attr_number       => '15',
+      p_attr_value        => v_fecha_pago_factura);
    APEX_COLLECTION.UPDATE_MEMBER_ATTRIBUTE (
       p_collection_name   => colec_pp,
       p_seq               => p_seq,
@@ -1128,15 +1152,10 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
     for i in 1..v_cant_fila
     loop
         case i
-          when 7 then
-            a_col:=a_col||',  ''<span class="fiwefla" id="ocpsdregrsea" >OC Planificadas</span>'' ';
-            b_col:=b_col||',  ''<span class="fsdfila" id="ocsfasdfa">OC Recibidas sin Facturar</span>'' ';
-            c_col:=c_col||',  ''<span class="filsdfa" id="fppasdfasdf">Facturas Pendientes de Pago</span>'' ';
           when v_cant_fila then
           a_col:=a_col||','|| 1  ||' as orden ';
           b_col:=b_col||','|| 19 ||' as orden ';
           c_col:=c_col||','|| 29 ||' as orden ';
-
         else
           a_col:=a_col||',''a'' ';
           b_col:=b_col||',''b'' ';          

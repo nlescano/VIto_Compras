@@ -7,9 +7,9 @@ IS
                                           p_id_pres_pago_detalle  NUMBER,
                                           p_modo    VARCHAR2    DEFAULT 'M')
     /*
-    M modifica el guardado permanente (N)
-    G Guarda el temporal (S)
-    C restaura el guardado anterior (M)    
+    M modifica el guardado permanente (N) No
+    G Guarda el temporal (S) Si
+    C restaura el guardado anterior (M) MODIFICADO
     */
    is 
       v_pres_pagos_detalle_periodo   APX_TCOM.TC_PRES_PAGOS_DETALLE_PERIODO%ROWTYPE;
@@ -146,9 +146,10 @@ IS
       RETURN v_precio;
   EXCEPTION
       WHEN NO_DATA_FOUND THEN
-         RETURN 0;
+        apex_debug.error('fc_precio_unitario No data found');
+        RETURN 0;
       WHEN OTHERS THEN
-         RAISE_APPLICATION_ERROR (-20000,'Error en fn_precio_unitario ' || SQLERRM);
+         RAISE_APPLICATION_ERROR (-20000,'Error en fc_precio_unitario ' || SQLERRM);
   END;
 
   PROCEDURE prc_colec_presu_pagos (p_id_presu_pago IN NUMBER)
@@ -156,7 +157,6 @@ IS
   -- Coleccion de presupuesto de pagos.
   BEGIN
     apex_collection.create_or_truncate_collection (colec_pp);
-    --  apex_debug.error('coleccion creada');
     FOR i IN (SELECT  pd.id_pres_pago_detalle,
                       pd.id_presupuesto_pagos,
                       pd.consignacion,
@@ -316,7 +316,7 @@ END;
             v_pres_detalle.importe_factura := i.cantidad * i.precio_unitario;
         END IF;
         
-        apex_debug.error('codigo_origen %s - id_proveedor %s - importe_factura %s', i.codigo_origen, i.id_proveedor, v_pres_detalle.importe_factura );
+  --      apex_debug.error('codigo_origen %s - id_proveedor %s - importe_factura %s', i.codigo_origen, i.id_proveedor, v_pres_detalle.importe_factura );
         
         v_pres_detalle.consignacion           :=  i.consignacion ;
         v_pres_detalle.id_proveedor           :=  i.id_proveedor ;
@@ -370,13 +370,13 @@ apex_debug.error('1 acp %s p_id_proveedor: %s tipo_orden %s', p_compra_pago_deta
         INTO v_nombre_proveedor
         FROM v_proveedores_sin_filtro
        WHERE vendor_id = p_id_proveedor;
-apex_debug.error('2 acp %s p_inventory_item_id: %s', p_compra_pago_detalle, p_inventory_item_id);
+--apex_debug.error('2 acp %s p_inventory_item_id: %s', p_compra_pago_detalle, p_inventory_item_id);
 
       SELECT codigo_mp
         INTO v_codigo_mp
         FROM v_materiales
        WHERE inventory_item_id = p_inventory_item_id;
-apex_debug.error('3 acp %s p_codigo_origen: %s', p_compra_pago_detalle,p_codigo_origen);
+--apex_debug.error('3 acp %s p_codigo_origen: %s', p_compra_pago_detalle,p_codigo_origen);
 
     SELECT NVL ((SELECT nombre_origen     
                    FROM v_origen
@@ -385,7 +385,7 @@ apex_debug.error('3 acp %s p_codigo_origen: %s', p_compra_pago_detalle,p_codigo_
       INTO v_nombre_origen
       FROM DUAL;
 
-apex_debug.error('4 acp %s p_term_id: %s', p_compra_pago_detalle,p_term_id);
+--apex_debug.error('4 acp %s p_term_id: %s', p_compra_pago_detalle,p_term_id);
 
       SELECT NVL ( (select name
                       from v_plazo_pago
@@ -419,7 +419,7 @@ apex_debug.error('4 acp %s p_term_id: %s', p_compra_pago_detalle,p_term_id);
          p_n001              => 1,
          p_n002              => 1,
          p_n005              => 10);
-apex_debug.error('5 acp %s ', p_compra_pago_detalle);
+--apex_debug.error('5 acp %s ', p_compra_pago_detalle);
       PKG_PRESUPUESTO_PAGOS.prc_agregar_periodos_colec(p_compra_pago_detalle    => p_compra_pago_detalle,
                p_seq                    => v_seq);
    EXCEPTION
@@ -428,9 +428,9 @@ apex_debug.error('5 acp %s ', p_compra_pago_detalle);
    END;
 
   PROCEDURE prc_modificar_colec_pago (p_seq               IN NUMBER,
-                                      p_fecha_arribo      IN DATE,
-                                      p_precio_unitario   IN NUMBER,
-                                      p_term_id           IN NUMBER)
+                                      p_fecha_arribo      IN DATE DEFAULT NULL,
+                                      p_precio_unitario   IN NUMBER DEFAULT NULL,
+                                      p_term_id           IN NUMBER DEFAULT NULL)
   IS
       v_plazo_pago_name     VARCHAR2 (3000);
       v_importe_impuestos   NUMBER;
@@ -457,31 +457,32 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
                    where collection_name = colec_pp
                    and seq_id = p_seq)
   LOOP
-  IF c.c007 = 'SI' THEN
-        v_importe_impuestos  := 0 ;
-        v_importe_derechos   := 0 ;
-  ELSE
-        v_importe_impuestos  := PKG_PRESUPUESTO_PAGOS.fnc_calcular_importe_impuestos (
-                                                  p_precio_unitario   => p_precio_unitario,
-                                                  p_cantidad          => c.c008,
-                                                  p_codigo_origen     => fnc_cod_origen(c.c005));
-        v_importe_derechos  := PKG_PRESUPUESTO_PAGOS.fnc_calcular_importe_impuestos (
-                                                  p_precio_unitario   => p_precio_unitario,
-                                                  p_cantidad          => c.c008,
-                                                  p_codigo_origen     => fnc_cod_origen(c.c005),
-                                                  p_tipo              => 'DERECHOS');
-  END IF;
+  IF  p_precio_unitario != NULL THEN
+    IF c.c007 = 'SI'  THEN
+          v_importe_impuestos  := 0 ;
+          v_importe_derechos   := 0 ;
+    ELSE
+          v_importe_impuestos  := PKG_PRESUPUESTO_PAGOS.fnc_calcular_importe_impuestos (
+                                                    p_precio_unitario   => p_precio_unitario,
+                                                    p_cantidad          => c.c008,
+                                                    p_codigo_origen     => fnc_cod_origen(c.c005));
+          v_importe_derechos  := PKG_PRESUPUESTO_PAGOS.fnc_calcular_importe_impuestos (
+                                                    p_precio_unitario   => p_precio_unitario,
+                                                    p_cantidad          => c.c008,
+                                                    p_codigo_origen     => fnc_cod_origen(c.c005),
+                                                    p_tipo              => 'DERECHOS');
+    END IF;
 
-  IF (fnc_cod_origen(c.c005) = 'AR' ) THEN
-        v_importe_derechos   := 0 ;
-        v_importe_factura := c.c008 * p_precio_unitario + v_importe_impuestos;
-        v_importe_der_mas_imp := 0;
-  ELSE
-        v_importe_der_mas_imp := NVL(v_importe_derechos,0) + NVL(v_importe_impuestos,0);         
-        v_importe_factura :=  c.c008 * p_precio_unitario;
-  END IF;
+    IF (fnc_cod_origen(c.c005) = 'AR' ) THEN
+          v_importe_derechos   := 0 ;
+          v_importe_factura := c.c008 * p_precio_unitario + v_importe_impuestos;
+          v_importe_der_mas_imp := 0;
+    ELSE
+          v_importe_der_mas_imp := NVL(v_importe_derechos,0) + NVL(v_importe_impuestos,0);         
+          v_importe_factura :=  c.c008 * p_precio_unitario;
+    END IF;
    apex_debug.error('3 afuera segundo IF');
-  
+  END IF
 
   IF p_term_id IS NOT NULL THEN
     SELECT COUNT( sequence_num ) INTO v_cant_pagos 
@@ -694,7 +695,7 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
           v_pres_detalle.importe_factura := i.cantidad * i.precio_unitario;
       END IF;
       
-      apex_debug.error('codigo_origen %s - id_proveedor %s - importe_factura %s', i.codigo_origen, i.id_proveedor, v_pres_detalle.importe_factura );
+--      apex_debug.error('codigo_origen %s - id_proveedor %s - importe_factura %s', i.codigo_origen, i.id_proveedor, v_pres_detalle.importe_factura );
       
       v_pres_detalle.consignacion           :=  i.consignacion ;
       v_pres_detalle.id_proveedor           :=  i.id_proveedor ;
@@ -919,13 +920,14 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
          raise_application_error (-20000,'ERROR EN pkg_presupuesto_pagos.prc_obtener_periodos_presu_pago ' || SQLERRM);
    END;
 
-   PROCEDURE prc_guardar_detalles_colec(p_id_presupuesto_pago IN NUMBER)
-   IS
-      v_detalle   APX_TCOM.TC_PRESUPUESTO_PAGOS_DETALLES%ROWTYPE;
-   BEGIN
+  PROCEDURE prc_guardar_detalles_colec(p_id_presupuesto_pago IN NUMBER)
+  IS
+    v_detalle   APX_TCOM.TC_PRESUPUESTO_PAGOS_DETALLES%ROWTYPE;
+  BEGIN
       FOR i IN (SELECT c001 AS compra_pago_detalle,
                        c006 AS fecha_arribo,
                        c009 AS precio_unitario,
+                       c015 AS fecha_pago_factura,
                        c019 AS term_id,
                        rownum
                   FROM apex_collections
@@ -936,30 +938,30 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
            FROM TC_PRESUPUESTO_PAGOS_DETALLES
           WHERE ID_PRES_PAGO_DETALLE = i.compra_pago_detalle;
 
-         v_detalle.fecha_arribo := TO_DATE (i.fecha_arribo, 'DD/MM/YYYY');
-         v_detalle.fecha_der_imp := TO_DATE (i.fecha_arribo, 'DD/MM/YYYY');         
-         v_detalle.precio_unitario := i.precio_unitario;
+        v_detalle.fecha_arribo := TO_DATE (i.fecha_arribo, 'DD/MM/YYYY');
+        v_detalle.fecha_der_imp := TO_DATE (i.fecha_arribo, 'DD/MM/YYYY');         
+        v_detalle.precio_unitario := i.precio_unitario;
+        v_detalle.fecha_pago_factura := i.fecha_pago_factura;
 
-         IF i.term_id is not null THEN
-            v_detalle.plazo_pago := i.term_id;
-            PKG_PRESUPUESTO_PAGOS.prc_cambiar_estado_det_peri(
-                                          p_id_pres_pago_detalle  => i.compra_pago_detalle,
-                                          p_modo                  => 'G');
-         END IF;
+        IF i.term_id is not null THEN
+          v_detalle.plazo_pago := i.term_id;
+          PKG_PRESUPUESTO_PAGOS.prc_cambiar_estado_det_peri(
+                                        p_id_pres_pago_detalle  => i.compra_pago_detalle,
+                                        p_modo                 => 'G');
+        END IF;
 
-         PKG_CTRL_PRESUPUESTO_PAGOS.MODIFICAR_PRES_PAGOS_DETALLES(v_detalle);
-         IF i.rownum = 1 THEN
-            UPDATE TC_PRESUPUESTO_PAGOS
-               SET updated_date = sysdate,
-                   updated_by   = v('APP_USER')
-            WHERE id_presupuesto_pagos = p_id_presupuesto_pago;
-         END IF;
-
+        PKG_CTRL_PRESUPUESTO_PAGOS.MODIFICAR_PRES_PAGOS_DETALLES(v_detalle);
+        IF i.rownum = 1 THEN
+          UPDATE TC_PRESUPUESTO_PAGOS
+              SET updated_date = sysdate,
+                  updated_by   = v('APP_USER')
+          WHERE id_presupuesto_pagos = p_id_presupuesto_pago;
+        END IF;
       END LOOP;
-   EXCEPTION
-      WHEN OTHERS THEN
-         RAISE_APPLICATION_ERROR (-20000,'Error en PKG_PRESUPUESTO_PAGOS.prc_guardar_detalles_colec ' || SQLERRM);
-   END;
+  EXCEPTION
+    WHEN OTHERS THEN
+      RAISE_APPLICATION_ERROR (-20000,'Error en PKG_PRESUPUESTO_PAGOS.prc_guardar_detalles_colec '|| SQLERRM);
+  END;
 
    PROCEDURE prc_agregar_col_pp (
       p_cols            IN OUT apex_t_varchar2,
@@ -1157,9 +1159,9 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
           b_col:=b_col||','|| 19 ||' as orden ';
           c_col:=c_col||','|| 29 ||' as orden ';
         else
-          a_col:=a_col||',''a'' ';
-          b_col:=b_col||',''b'' ';          
-          c_col:=c_col||',''c'' ';
+          a_col:=a_col||',NULL';
+          b_col:=b_col||',NULL';          
+          c_col:=c_col||',NULL';
 
         end case;
     end loop;
@@ -1192,7 +1194,7 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
       --      apex_debug.info(l_outer_query);
       --      apex_debug.error(' antes inner query');
       --      apex_debug.error(l_inner_query);
-      apex_debug.error ('antes del return query ' || SQLERRM);
+      --      apex_debug.error ('antes del return query ' || SQLERRM);
       apex_debug.error (l_outer_query);
   RETURN l_outer_query;
   EXCEPTION

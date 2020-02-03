@@ -37,9 +37,9 @@ ya cree la tabla detalle detalle
 DONE 
 
 20/01
-- Todavia esperando mail de carina con las definicionres restantes. cuidado con las querys de ordenes sin facturas y facturas pendientes de pago. [ ]
+- Todavia esperando mail de carina con las definicionres restantes. cuidado con las querys de ordenes sin facturas y facturas pendientes de pago. [cancelado]
 
-- Tambien es necesario revisar la insercion de detalle_periodo con "TEMPORAL := 'F' " para no cometer errores. [X]
+- Tambien es necesario revisar la insercion de detalle_periodo con "TEMPORAL := 'F' " para no cometer errores. [Listo]
 revision := lo que hace es insertar el pago de derechos e impuestos en el caso de que los hubiera
 
 - Tambien revisar a nivel tabla y coleccion los distintos tipos de registros, oc p, ocsf. ya cree la tabla de tipos e inserta los dos primeros. [ ]
@@ -47,8 +47,10 @@ revision := lo que hace es insertar el pago de derechos e impuestos en el caso d
 21/01
 - En la query de oc sin facturar hay registros que no tienen origen. consultar a carina. 
 tambien hay registros con proveedores que no estan en el filtro de seleccion anterior. en particular que no cumplen pvs.org_id = '86' ¿como resolver esto? 
---> mandarle mail a carina, esperando mail de carina. [ ]
 - Calculo de pagos de materias en consignacion segun el consumo [ ]
 
 29/01
-- Revisar el procedimiento prc_modificar_colec_pago para que funciones correctamente cuando le envie campos nulos [ ]
+- Revisar el procedimiento prc_modificar_colec_pago para que funciones correctamente cuando le envie campos nulos [CANCELADO]
+
+03/02
+ - mandarle mail de carina apurandola [Listo]

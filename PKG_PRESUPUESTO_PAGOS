@@ -211,7 +211,8 @@ IS
   PROCEDURE PRC_INSERT_PAGOS_PERIODOS_FAC (P_TERM_ID                IN NUMBER,
                                          P_IMPORTE                IN NUMBER,
                                          P_ID_PRES_PAGO_DETALLE   IN NUMBER,
-                                         P_MODIFICAR              IN VARCHAR2 DEFAULT 'S')
+                                         P_MODIFICAR              IN VARCHAR2 DEFAULT 'S',
+                                         P_CONSIGNACION           IN VARCHAR2 DEFAULT 'NO')
   IS
   v_fecha_inicial                DATE;
   v_pres_pagos_detalle_periodo   APX_TCOM.TC_PRES_PAGOS_DETALLE_PERIODO%ROWTYPE;
@@ -219,38 +220,45 @@ IS
   v_temp                         APX_TCOM.TC_PRES_PAGOS_DETALLE_PERIODO.TEMPORAL%TYPE;
   BEGIN
    -- Obtener fecha salida de materia
-  SELECT fecha_salida
-    INTO v_fecha_inicial
-    FROM tc_presupuesto_pagos_detalles
-   WHERE id_pres_pago_detalle = P_ID_PRES_PAGO_DETALLE;
+   IF p_consignacion = 'NO' THEN 
+    SELECT fecha_salida
+      INTO v_fecha_inicial
+      FROM tc_presupuesto_pagos_detalles
+    WHERE id_pres_pago_detalle = P_ID_PRES_PAGO_DETALLE;
 
-   select nvl((SELECT distinct plazo_pago 
-                FROM apx_tcom.tc_pres_pagos_detalle_periodo
-                where ID_PRES_PAGO_DETALLE    = P_ID_PRES_PAGO_DETALLE
-                and temporal NOT IN ('M','F')),-1)
-     into v_term_id_tabla from dual;
-   IF v_term_id_tabla != -1 THEN   
-         PKG_PRESUPUESTO_PAGOS.prc_cambiar_estado_det_peri(p_id_pres_pago_detalle => p_id_pres_pago_detalle,
-                                          p_modo   => 'M');         
-   end if;
+    select nvl((SELECT distinct plazo_pago 
+                  FROM apx_tcom.tc_pres_pagos_detalle_periodo
+                  where ID_PRES_PAGO_DETALLE    = P_ID_PRES_PAGO_DETALLE
+                  and temporal NOT IN ('M','F')),-1)
+      into v_term_id_tabla from dual;
+    IF v_term_id_tabla != -1 THEN   
+          PKG_PRESUPUESTO_PAGOS.prc_cambiar_estado_det_peri(p_id_pres_pago_detalle => p_id_pres_pago_detalle,
+                                            p_modo   => 'M');         
+    end if;
 
-  v_pres_pagos_detalle_periodo.id_pres_pago_detalle := P_ID_PRES_PAGO_DETALLE;
-  v_pres_pagos_detalle_periodo.temporal := 'S';
-  v_pres_pagos_detalle_periodo.plazo_pago := P_TERM_ID;
-   FOR i IN (  SELECT sequence_num sequence_num, --Secuencia del plazo, debe ordenarse por secuencia
-                      due_percent / 100 due_percent, --% que se debe pagar en ese plazo
-                      due_days due_days --plazo que debe sumarse a la fecha que se tome como base
-              FROM apps.ap_terms_lines@lnkapxtcom
-             WHERE term_id = p_term_id ---Plazo de pago seleccionado por el usuario en el campo Plazo de pago
-          ORDER BY sequence_num)
-   LOOP
-      v_pres_pagos_detalle_periodo.id_pres_pagos_detalle_periodo :=   SEQ_PRES_PAGOS_DETALLE_PERIODO.NEXTVAL;
-      v_pres_pagos_detalle_periodo.fecha_pago := v_fecha_inicial + i.due_days;
-      v_pres_pagos_detalle_periodo.periodo_pago := fnc_obtener_periodo_cod (v_fecha_inicial + i.due_days);
-      v_pres_pagos_detalle_periodo.monto := round(P_IMPORTE * i.due_percent,2);
+    v_pres_pagos_detalle_periodo.id_pres_pago_detalle := P_ID_PRES_PAGO_DETALLE;
+    v_pres_pagos_detalle_periodo.temporal := 'S';
+    v_pres_pagos_detalle_periodo.plazo_pago := P_TERM_ID;
+    FOR i IN (  SELECT sequence_num sequence_num, --Secuencia del plazo, debe ordenarse por secuencia
+                        due_percent / 100 due_percent, --% que se debe pagar en ese plazo
+                        due_days due_days --plazo que debe sumarse a la fecha que se tome como base
+                FROM apps.ap_terms_lines@lnkapxtcom
+              WHERE term_id = p_term_id ---Plazo de pago seleccionado por el usuario en el campo Plazo de pago
+            ORDER BY sequence_num)
+    LOOP
+        v_pres_pagos_detalle_periodo.id_pres_pagos_detalle_periodo :=   SEQ_PRES_PAGOS_DETALLE_PERIODO.NEXTVAL;
+        v_pres_pagos_detalle_periodo.fecha_pago := v_fecha_inicial + i.due_days;
+        v_pres_pagos_detalle_periodo.periodo_pago := fnc_obtener_periodo_cod (v_fecha_inicial + i.due_days);
+        v_pres_pagos_detalle_periodo.monto := round(P_IMPORTE * i.due_percent,2);
 
-      PKG_CTRL_PRESUPUESTO_PAGOS.INSERTAR_PAGO_PERIODO (v_pres_pagos_detalle_periodo);
-   END LOOP;
+        PKG_CTRL_PRESUPUESTO_PAGOS.INSERTAR_PAGO_PERIODO (v_pres_pagos_detalle_periodo);
+    END LOOP;
+  ELSE
+/*  CONSIGNACION CORREGIR */
+
+    null;
+
+  END if;
 EXCEPTION
    WHEN OTHERS THEN 
      RAISE_APPLICATION_ERROR (-20000,'ERROR en PKG_PRESUPUESTO_PAGOS.PRC_INSERT_PAGOS_PERIODOS_FAC ' || SQLERRM);
@@ -482,20 +490,23 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
           v_importe_factura :=  c.c008 * p_precio_unitario;
     END IF;
    apex_debug.error('3 afuera segundo IF');
-  END IF
+  END IF;
 
-  IF p_term_id IS NOT NULL THEN
-    SELECT COUNT( sequence_num ) INTO v_cant_pagos 
-    FROM apps.ap_terms_lines@lnkapxtcom
-    WHERE term_id = p_term_id;
-
-    IF v_cant_pagos = 1 THEN
-      select to_char((fecha_salida + due_days),'DD/MM/YYYY') into v_fecha_pago_factura
-      FROM TC_PRESUPUESTO_PAGOS_DETALLES, apps.ap_terms_lines@lnkapxtcom
-      where id_pres_pago_detalle = c.c001
-      and term_id = p_term_id ;
-    ELSE
-      v_fecha_pago_factura := 'Pago Multiple';
+  IF c.c004 = 'SI' then
+   v_fecha_pago_factura := 'Según consumo';
+  ELSE
+    IF p_term_id IS NOT NULL THEN
+      SELECT COUNT( sequence_num ) INTO v_cant_pagos 
+      FROM apps.ap_terms_lines@lnkapxtcom
+      WHERE term_id = p_term_id;
+      IF v_cant_pagos = 1 THEN
+        select to_char((fecha_salida + due_days),'DD/MM/YYYY') into v_fecha_pago_factura
+        FROM TC_PRESUPUESTO_PAGOS_DETALLES, apps.ap_terms_lines@lnkapxtcom
+        where id_pres_pago_detalle = c.c001
+        and term_id = p_term_id ;
+      ELSE
+        v_fecha_pago_factura := 'Pago Multiple';
+      END IF;
     END IF;
   END IF;
   apex_debug.error('4 v_fecha_pago_factura'||v_fecha_pago_factura);
@@ -687,7 +698,7 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
       END IF;
 
       IF i.codigo_origen = 'AR' THEN
-          v_pres_detalle.importe_derechos   := 0 ;
+          v_pres_detalle.importe_derechos    := 0 ;
           v_pres_detalle.importe_der_mas_imp := 0 ;
           v_pres_detalle.importe_factura := i.cantidad * i.precio_unitario + v_pres_detalle.importe_impuestos;
       ELSE
@@ -1215,4 +1226,3 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
     END LOOP;
   END;
 END PKG_PRESUPUESTO_PAGOS;
-/

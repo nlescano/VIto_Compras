@@ -47,10 +47,15 @@ revision := lo que hace es insertar el pago de derechos e impuestos en el caso d
 21/01
 - En la query de oc sin facturar hay registros que no tienen origen. consultar a carina. 
 tambien hay registros con proveedores que no estan en el filtro de seleccion anterior. en particular que no cumplen pvs.org_id = '86' ¿como resolver esto? 
-- Calculo de pagos de materias en consignacion segun el consumo [ ]
+- Calculo de pagos de materias en consignacion segun el consumo [Listo]
 
 29/01
 - Revisar el procedimiento prc_modificar_colec_pago para que funciones correctamente cuando le envie campos nulos [CANCELADO]
 
 03/02
  - mandarle mail de carina apurandola [Listo]
+
+ 05/02
+ -Call con carina [Listo] -- consultar mail
+ -Funcion fnc_cod_origen [ ]
+ -Comprobar Tablero [ ]

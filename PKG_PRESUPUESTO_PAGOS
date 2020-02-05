@@ -3,50 +3,50 @@ IS
    colec_pp   VARCHAR2 (500) := v ('C_PRESU_PAGOS');
    l_offset   NUMBER := 19;
    
-   PROCEDURE    prc_cambiar_estado_det_peri(
-                                          p_id_pres_pago_detalle  NUMBER,
-                                          p_modo    VARCHAR2    DEFAULT 'M')
-    /*
-    M modifica el guardado permanente (N) No
-    G Guarda el temporal (S) Si
-    C restaura el guardado anterior (M) MODIFICADO
-    */
-   is 
-      v_pres_pagos_detalle_periodo   APX_TCOM.TC_PRES_PAGOS_DETALLE_PERIODO%ROWTYPE;
-   BEGIN
-   CASE p_modo 
-         WHEN 'M' THEN
-            DELETE TC_PRES_PAGOS_DETALLE_PERIODO
-             WHERE id_pres_pago_detalle = p_id_pres_pago_detalle
-               AND temporal = 'S';
-            UPDATE TC_PRES_PAGOS_DETALLE_PERIODO
-               SET temporal = 'M'
-             WHERE id_pres_pago_detalle = p_id_pres_pago_detalle
-               AND temporal = 'N';
-         WHEN 'G' THEN
-            UPDATE TC_PRES_PAGOS_DETALLE_PERIODO
-               SET TEMPORAL = 'N'
-             WHERE id_pres_pago_detalle = p_id_pres_pago_detalle
-               AND TEMPORAL = 'S';
-         WHEN 'C' THEN
-            DELETE TC_PRES_PAGOS_DETALLE_PERIODO
-             WHERE id_pres_pago_detalle = p_id_pres_pago_detalle
-               AND temporal = 'S';
-            UPDATE TC_PRES_PAGOS_DETALLE_PERIODO
-               SET TEMPORAL = 'N'
-             WHERE id_pres_pago_detalle = p_id_pres_pago_detalle
-               AND TEMPORAL = 'M';
-         ELSE
-            NULL;
-   END CASE;
-   EXCEPTION
-       WHEN no_data_found then
-        null;
-      WHEN others THEN 
-         RAISE_APPLICATION_ERROR(-20000, 'ERROR en PKG_PRESUPUESTO_PAGOS.prc_cambiar_estado_periodo '|| sqlerrm);
-   END;
+  PROCEDURE    prc_cambiar_estado_det_peri(
+                                        p_id_pres_pago_detalle  NUMBER,
+                                        p_modo    VARCHAR2    DEFAULT 'M')
+  /*
+  M modifica el guardado permanente (N) No
+  G Guarda el temporal (S) Si
+  C restaura el guardado anterior (M) MODIFICADO
+  */
+  is 
+    v_pres_pagos_detalle_periodo   APX_TCOM.TC_PRES_PAGOS_DETALLE_PERIODO%ROWTYPE;
+  BEGIN
+  CASE p_modo 
+    WHEN 'M' THEN
+      DELETE TC_PRES_PAGOS_DETALLE_PERIODO
+       WHERE id_pres_pago_detalle = p_id_pres_pago_detalle
+         AND temporal = 'S';
+      UPDATE TC_PRES_PAGOS_DETALLE_PERIODO
+         SET temporal = 'M'
+       WHERE id_pres_pago_detalle = p_id_pres_pago_detalle
+         AND temporal = 'N';
+    WHEN 'G' THEN
+      UPDATE TC_PRES_PAGOS_DETALLE_PERIODO
+         SET TEMPORAL = 'N'
+       WHERE id_pres_pago_detalle = p_id_pres_pago_detalle
+         AND TEMPORAL = 'S';
+    WHEN 'C' THEN
+      DELETE TC_PRES_PAGOS_DETALLE_PERIODO
+       WHERE id_pres_pago_detalle = p_id_pres_pago_detalle
+         AND temporal = 'S';
+      UPDATE TC_PRES_PAGOS_DETALLE_PERIODO
+         SET TEMPORAL = 'N'
+       WHERE id_pres_pago_detalle = p_id_pres_pago_detalle
+         AND TEMPORAL = 'M';
+    ELSE
+      NULL;
+  END CASE;
+  EXCEPTION
+    WHEN no_data_found then
+      null;
+    WHEN others THEN 
+        RAISE_APPLICATION_ERROR(-20000, 'ERROR en PKG_PRESUPUESTO_PAGOS.prc_cambiar_estado_periodo '|| sqlerrm);
+  END;
 
-   PROCEDURE prc_agregar_periodos_colec
+  PROCEDURE prc_agregar_periodos_colec
       (p_compra_pago_detalle    NUMBER,
       p_seq                    NUMBER)
    IS
@@ -68,17 +68,17 @@ IS
                p_cant_periodos       => v_cant_periodos,
                p_id_presupuesto  => v_id_presupuesto_pago);
 
-   FOR i IN (    SELECT ROWNUM val
-                     FROM DUAL
-                  WHERE ROWNUM <= v_cant_periodos
-               CONNECT BY LEVEL < 90)
-   LOOP
-   select NVL((select SUM(monto)
-                  from TC_PRES_PAGOS_DETALLE_PERIODO
-                  WHERE periodo_pago = v_periodo_desde
-                  and id_pres_pago_detalle = p_compra_pago_detalle 
-                  and temporal != 'M'),0)
-   into v_monto from dual;      
+   FOR i IN ( SELECT ROWNUM val
+                FROM DUAL
+               WHERE ROWNUM <= v_cant_periodos
+             CONNECT BY LEVEL < 90)
+  LOOP
+  select NVL((select SUM(monto)
+                from TC_PRES_PAGOS_DETALLE_PERIODO
+               WHERE periodo_pago = v_periodo_desde
+                 and id_pres_pago_detalle = p_compra_pago_detalle 
+                 and temporal != 'M'),0)
+  into v_monto from dual;      
    
    v_attr :=  (i.val + l_offset + 2); 
  --  apex_debug.error('Justo antes del update i.val %s v_seq %s ',i.val,v_seq);
@@ -89,11 +89,11 @@ IS
          p_attr_value        => v_monto);
 
    v_periodo_desde := FNC_OBTENER_SIG_PERIODO_COD (v_periodo_desde);
-   END LOOP;
-   EXCEPTION
-      WHEN others THEN
-         RAISE_APPLICATION_ERROR(-20000,'ERROR en  PKG_PRESUPUESTO_PAGOS.prc_agregar_periodos_colec '||SQLERRM);
-   END; 
+  END LOOP;
+  EXCEPTION
+    WHEN others THEN
+      RAISE_APPLICATION_ERROR(-20000,'ERROR en  PKG_PRESUPUESTO_PAGOS.prc_agregar_periodos_colec '||SQLERRM);
+  END; 
    
   FUNCTION fc_precio_unitario (p_item_id        IN NUMBER,
                                 p_vendor_id      IN NUMBER,
@@ -103,8 +103,7 @@ IS
   AS
       v_precio   NUMBER;
   BEGIN
-    IF UPPER (p_consignacion) = 'SI'
-    THEN
+    IF UPPER (p_consignacion) = 'SI' THEN
         -- Con Consignacion
         SELECT NVL (DECODE (poh.currency_code,
                             'ARS', unit_price,
@@ -145,18 +144,18 @@ IS
       END IF;
       RETURN v_precio;
   EXCEPTION
-      WHEN NO_DATA_FOUND THEN
-        apex_debug.error('fc_precio_unitario No data found');
-        RETURN 0;
-      WHEN OTHERS THEN
-         RAISE_APPLICATION_ERROR (-20000,'Error en fc_precio_unitario ' || SQLERRM);
+    WHEN NO_DATA_FOUND THEN
+      apex_debug.error('fc_precio_unitario No data found');
+      RETURN 0;
+    WHEN OTHERS THEN
+      RAISE_APPLICATION_ERROR (-20000,'Error en fc_precio_unitario ' || SQLERRM);
   END;
 
   PROCEDURE prc_colec_presu_pagos (p_id_presu_pago IN NUMBER)
   AS
   -- Coleccion de presupuesto de pagos.
   BEGIN
-    apex_collection.create_or_truncate_collection (colec_pp);
+  apex_collection.create_or_truncate_collection(colec_pp);
     FOR i IN (SELECT  pd.id_pres_pago_detalle,
                       pd.id_presupuesto_pagos,
                       pd.consignacion,
@@ -179,8 +178,8 @@ IS
                FROM tc_presupuesto_pagos pp, tc_presupuesto_pagos_detalles pd
               WHERE pp.id_presupuesto_pagos = pd.id_presupuesto_pagos
                 AND p_id_presu_pago = pp.id_presupuesto_pagos
--- HardCodeo para evitar los errores de las querys de los otros reportes
-                AND pd.tipo_pres_pago_detalle != 20
+-- HardCodeo para evitar los errores de las querys de los otros reportes  ***
+        --        AND pd.tipo_pres_pago_detalle != 20
                 )
       LOOP
          --    apex_debug.error('LOOP detalle '||i.id_pres_pago_detalle);
@@ -378,6 +377,7 @@ apex_debug.error('1 acp %s p_id_proveedor: %s tipo_orden %s', p_compra_pago_deta
         INTO v_nombre_proveedor
         FROM v_proveedores_sin_filtro
        WHERE vendor_id = p_id_proveedor;
+
 --apex_debug.error('2 acp %s p_inventory_item_id: %s', p_compra_pago_detalle, p_inventory_item_id);
 
       SELECT codigo_mp
@@ -389,7 +389,7 @@ apex_debug.error('1 acp %s p_id_proveedor: %s tipo_orden %s', p_compra_pago_deta
     SELECT NVL ((SELECT nombre_origen     
                    FROM v_origen
                   WHERE codigo_origen = p_codigo_origen),
-              NULL)
+              'Sin Origen')
       INTO v_nombre_origen
       FROM DUAL;
 
@@ -778,7 +778,8 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
                 AND NVL (pll.cancel_flag, 'N') = 'N'
                 AND NVL (ph.approved_flag, 'N') = 'Y'
                 AND ph.terms_id = at.term_id
-                AND pll.quantity_received > pll.quantity_billed)
+                AND pll.quantity_received > pll.quantity_billed
+                AND ph.org_id='86')
     LOOP
     v_pres_detalle.importe_impuestos  := PKG_PRESUPUESTO_PAGOS.fnc_calcular_importe_impuestos (
                                               p_precio_unitario   => i.precio_unitario,
@@ -809,12 +810,12 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
       v_pres_detalle.plazo_pago             :=  i.plazo_pago;
       v_pres_detalle.id_pres_pago_detalle   :=  seq_presu_pagos_detalles.NEXTVAL ;
       v_pres_detalle.id_presupuesto_pagos   :=  p_id_presupuesto_pagos ;
-      -- v_pres_detalle.importe_derechos       :=  ;
+  -- v_pres_detalle.importe_derechos       :=  ;
       v_pres_detalle.fecha_der_imp          :=  i.fecha_arribo ;
-      -- v_pres_detalle.importe_impuestos      :=  ;
-      -- v_pres_detalle.fecha_pago_factura     :=  ;
-      -- v_pres_detalle.importe_factura        :=  ;
-      -- v_pres_detalle.pago_particionado      :=  ;
+  -- v_pres_detalle.importe_impuestos      :=  ;
+  -- v_pres_detalle.fecha_pago_factura     :=  ;
+  -- v_pres_detalle.importe_factura        :=  ;
+  -- v_pres_detalle.pago_particionado      :=  ;
       v_pres_detalle.tipo_pres_pago_detalle := 20;
 
 
@@ -1148,8 +1149,6 @@ se calculan las fechas de pago y pueden cambiar los periodos originales del pres
         p_preserve_case => false, 
         p_render_item   => false
     );
-
-
 
     SELECT LISTAGG (COLUMN_VALUE, ',') WITHIN GROUP (ORDER BY COLUMN_VALUE)
       INTO l_columnas_formateadas
